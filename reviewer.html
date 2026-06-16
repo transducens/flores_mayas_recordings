@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><title>Área del revisor</title>
+    <style>
+        body { font-family: RotisSerif; background: #eceff1; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; max-width: 550px; width: 100%; }
+        .prompt { font-size: 1.4rem; padding: 20px; border: 1px solid #cfd8dc; border-radius: 6px; margin: 20px 0; background: #fafafa; font-weight: 500; }
+        button { font-size: 1.1rem; padding: 12px 24px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; color: white; }
+        .btn-approve { background: #2e7d32; }
+        .btn-reject { background: #c62828; }
+        audio { width: 100%; margin-bottom: 20px; }
+        #counter { color: #546e7a; font-weight: bold; }
+        .logo-container {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .project-logo {
+            max-width: 150px;
+            height: auto;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo-container">
+            <img src="/static/flores_mayas_logo.png" alt="Project Logo" class="project-logo">
+    </div>
+
+    <h2>🎧 Panel de control de calidad</h2>
+    <div id="counter">Cargando archivos…</div>
+    <div class="prompt" id="text-box">No hay grabaciones que requieran de revivsión.</div>
+    <audio id="audio-player" controls></audio>
+    <div id="controls" class="hidden">
+        <button class="btn-reject" onclick="handleAction('reject')">❌ Rechazar y devolder</button>
+        <button class="btn-approve" onclick="handleAction('approve')">✅ Aprobar grabación</button>
+    </div>
+</div>
+
+<script>
+    let queue = [];
+    let activeIndex = 0;
+
+    const counter = document.getElementById('counter');
+    const textBox = document.getElementById('text-box');
+    const audioPlayer = document.getElementById('audio-player');
+    const controls = document.getElementById('controls');
+    const pathParts = window.location.pathname.split('/');
+    const currentLang = pathParts[1];
+
+    async function fetchQueue() {
+        const res = await fetch(`/api/${currentLang}/review-list`);
+        queue = await res.json();
+        activeIndex = 0;
+        renderCurrent();
+    }
+
+    function renderCurrent() {
+        if (queue.length === 0 || activeIndex >= queue.length) {
+            counter.textContent = "Fila de grabaciones vacía";
+            textBox.textContent = "🎉 ¡Excelente trabajo! No hay grabaciones que requieran de validación.";
+            audioPlayer.src = "";
+            controls.classList.add('hidden');
+            return;
+        }
+
+        const current = queue[activeIndex];
+        counter.textContent = `Revisando grabación ${activeIndex + 1} de ${queue.length} pendientes`;
+        textBox.textContent = `"${current.text}"`;
+        // Point target straight toward server files storage route map
+        audioPlayer.src = `/recordings/${currentLang}/prompt_${current.id}.wav`;
+        controls.classList.remove('hidden');
+        audioPlayer.load();
+    }
+
+    async function handleAction(actionType) {
+        const current = queue[activeIndex];
+        const res = await fetch(`/api/${currentLang}/review-action/${current.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: json = JSON.stringify({ action: actionType })
+        });
+
+        if (res.ok) {
+            activeIndex++;
+            renderCurrent();
+        } else {
+            alert("Error sending confirmation decision to server.");
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', fetchQueue);
+</script>
+</body>
+</html>

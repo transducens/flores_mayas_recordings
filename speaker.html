@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><title>Speaker Workspace</title>
+    <style>
+        body { font-family: RotisSerif; background: #eef2f3; display: flex; justify-content: center; align-items: center; height: 100vh; margin:0;}
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; max-width: 500px; width: 100%; }
+        .prompt { font-size: 1.6rem; font-weight: bold; margin: 25px 0; color: #222; min-height: 60px; }
+        button { font-size: 1.1rem; padding: 12px 24px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; }
+        button:disabled { background: #ccc !important; cursor: not-allowed; }
+        .btn-rec { background: #de354c; color: white; }
+        .btn-sub { background: #28a745; color: white; }
+        .recording { background: #ffc107 !important; color: black; }
+        audio { width: 100%; margin: 15px 0; }
+        #status { font-weight: bold; color: #555; }
+        .logo-container {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .project-logo {
+            max-width: 150px;
+            height: auto;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo-container">
+        <img src="/static/flores_mayas_logo.png" alt="Project Logo" class="project-logo">
+    </div>
+    <h2>🎙️ Portal de grabaciones</h2>
+    <div id="status">Cargando grabaciones…</div>
+    <div class="prompt" id="prompt-box">---</div>
+    <div id="audio-container"></div>
+    <div>
+        <button id="rec-btn" class="btn-rec" disabled>Cargando micrófono…</button>
+        <button id="sub-btn" class="btn-sub" disabled>Enviar grabación →</button>
+    </div>
+</div>
+
+<script>
+    let currentPrompt = null;
+    let mediaRecorder, chunks = [], isRecording = false, activeBlob = null;
+
+    const promptBox = document.getElementById('prompt-box');
+    const recBtn = document.getElementById('rec-btn');
+    const subBtn = document.getElementById('sub-btn');
+    const audioContainer = document.getElementById('audio-container');
+    const status = document.getElementById('status');
+    const pathParts = window.location.pathname.split('/');
+    const currentLang = pathParts[1];
+
+    async function loadNext() {
+        audioContainer.innerHTML = '';
+        subBtn.disabled = true;
+        activeBlob = null;
+
+        const res = await fetch(`/api/${currentLang}/next-prompt`);
+        currentPrompt = await res.json();
+
+        if (currentPrompt.done) {
+            promptBox.textContent = currentPrompt.message;
+            recBtn.classList.add('hidden');
+            status.textContent = "¡Trabajo completado!";
+        } else {
+            promptBox.textContent = currentPrompt.text;
+            status.textContent = `Grabación #${currentPrompt.id}`;
+            if(mediaRecorder) recBtn.disabled = false;
+        }
+    }
+
+    async function setupMic() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = e => chunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                activeBlob = new Blob(chunks, { type: 'audio/wav' });
+                const audio = document.createElement('audio');
+                audio.src = URL.createObjectURL(activeBlob);
+                audio.controls = true;
+                audioContainer.appendChild(audio);
+                subBtn.disabled = false;
+                recBtn.disabled = false;
+                recBtn.textContent = "🔄 Grabar de nuevo";
+            };
+            if(currentPrompt && !currentPrompt.done) recBtn.disabled = false;
+            recBtn.textContent = "🎙️ Comenzar a grabar";
+        } catch (err) { status.textContent = "❌ Error de acceso al micrófono."; }
+    }
+
+    recBtn.addEventListener('click', () => {
+        if (!isRecording) {
+            chunks = []; audioContainer.innerHTML = ''; subBtn.disabled = true;
+            mediaRecorder.start(); isRecording = true;
+            recBtn.textContent = "🛑 Parar"; recBtn.classList.add('recording');
+        } else {
+            mediaRecorder.stop(); isRecording = false;
+            recBtn.textContent = "Procesando…"; recBtn.classList.remove('recording'); recBtn.disabled = true;
+        }
+    });
+
+    subBtn.addEventListener('click', async () => {
+        if (!activeBlob || !currentPrompt) return;
+        subBtn.disabled = true; recBtn.disabled = true;
+        status.textContent = "Sincronizando archivo de audio con el servidor…";
+
+        const fd = new FormData();
+        fd.append('audio', activeBlob);
+
+        const res = await fetch(`/upload/${currentLang}/${currentPrompt.id}`, { method: 'POST', body: fd });
+        if (res.ok) { loadNext(); }
+        else { status.textContent = "❌ Error de transmisión. Inténtelo de nuevo."; subBtn.disabled = false; }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => { loadNext().then(setupMic); });
+</script>
+</body>
+</html>

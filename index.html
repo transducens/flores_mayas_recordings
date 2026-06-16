@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><title>Speech Framework Portal</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin:0; }
+        .box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; max-width: 400px; width: 100%; }
+        .logo { max-width: 140px; margin-bottom: 15px; }
+        select, button { width: 100%; padding: 12px; font-size: 1rem; border-radius: 6px; margin: 10px 0; border: 1px solid #ccc; box-sizing: border-box; }
+        button { border: none; cursor: pointer; font-weight: bold; color: white; transition: background 0.2s; }
+        .btn-spk { background: #007bff; } .btn-spk:hover { background: #0056b3; }
+        .btn-rev { background: #455a64; } .btn-rev:hover { background: #263238; }
+    </style>
+</head>
+<body>
+<div class="box">
+    <img src="/static/flores_mayas_logo.png" alt="Logo" class="logo">
+    <h2>Portal de grabación y revisión</h2>
+    <p style="color: #666;">Elige tu idioma y tu rol:</p>
+
+    <select id="lang-select">
+        <option value="cak">Kaqchikel (cak)</option>
+        <option value="kek">Qʼeqchiʼ (kek)</option>
+        <option value="quc">Kʼicheʼ (quc)</option>
+        </select>
+
+    <button class="btn-spk" onclick="navigate('speaker')">🎙️ Abrir el espacio de hablante</button>
+    <button class="btn-rev" onclick="navigate('reviewer')">🎧 Abrir el espacio de revisor</button>
+</div>
+
+<script>
+    function navigate(role) {
+        const lang = document.getElementById('lang-select').value;
+        window.location.href = `/${lang}/${role}`;
+    }
+</script>
+</body>
+</html>
