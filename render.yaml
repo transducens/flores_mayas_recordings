@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: speech-recorder-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    disk:
+      name: recordings-storage
+      mountPath: /opt/render/project/src/recordings
+      sizeGB: 10
